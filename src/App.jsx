@@ -10,32 +10,28 @@ import {
 // --- GLOBAL CONSTANTS ---
 
 const MAX_PLAYER_HP = 100;
-const BASE_DRAIN_RATE = 3.5; // ลดความเร็วลงนิดหน่อย (จาก 4.5) ให้เล่นทัน
+const BASE_DRAIN_RATE = 3.5; 
 const HEAL_PER_WORD = 4; 
 const BASE_ENEMY_HP = 60; 
 const BASE_XP_REQ = 100; 
 const TYPO_PENALTY = 10;
-const TICK_RATE = 16; // 60 FPS update rate for smooth flow
+const TICK_RATE = 16; 
 const WIN_BOSS_COUNT = 10;
+const MAX_SKILL_LEVEL = 3;
 
 // Image IDs
 const IMG_CASTLE_ID = "14SlsJ9Nky-pqF-l2Npd33Gxq6fmp9QUi";
 const getDriveImg = (id) => `https://drive.google.com/thumbnail?id=${id}&sz=w500`;
 
+// --- 3 PRIMARY SKILLS ---
 const SKILLS = [
-  { id: 'burn', name: 'Ignite', icon: <Flame className="text-orange-500" />, desc: 'Burn DOT', color: 'border-orange-500' },
-  { id: 'freeze', name: 'Freeze', icon: <Snowflake className="text-cyan-400" />, desc: 'Slow Enemy', color: 'border-cyan-400' },
-  { id: 'chain', name: 'Chain', icon: <Zap className="text-yellow-400" />, desc: 'Bounce DMG', color: 'border-yellow-400' },
-  { id: 'lifesteal', name: 'Vampire', icon: <Heart className="text-red-500" />, desc: 'Heal on Kill', color: 'border-red-500' },
-  { id: 'shield', name: 'Shield', icon: <Shield className="text-blue-300" />, desc: 'Reduce Drain', color: 'border-blue-300' },
-  { id: 'explode', name: 'Boom', icon: <Bomb className="text-red-600" />, desc: 'Death AOE', color: 'border-red-600' },
-  { id: 'crit', name: 'Fatal', icon: <Sword className="text-yellow-600" />, desc: 'Double DMG', color: 'border-yellow-600' },
-  { id: 'knockback', name: 'Push', icon: <MoveRight className="text-slate-400" />, desc: 'Push Back', color: 'border-slate-400' },
-  { id: 'execute', name: 'Exec', icon: <Skull className="text-purple-500" />, desc: 'Kill Low HP', color: 'border-purple-500' },
-  { id: 'score', name: 'Greed', icon: <Coins className="text-yellow-300" />, desc: 'Bonus Score', color: 'border-yellow-300' },
+  { id: 'burn', name: 'Fire', icon: <Flame className="text-orange-500" />, desc: 'Bonus Damage on every hit', color: 'border-orange-500' },
+  { id: 'freeze', name: 'Ice', icon: <Snowflake className="text-cyan-400" />, desc: 'Stuns boss briefly on hit', color: 'border-cyan-400' },
+  { id: 'push', name: 'Push', icon: <MoveRight className="text-yellow-400" />, desc: 'Knocks boss back on hit', color: 'border-yellow-400' },
 ];
 
 const GLOBAL_WORD_POOL = [
+    // Original
     { word: "CAT", meaning: "แมว", len: 3, emoji: "🐱" },
     { word: "DOG", meaning: "สุนัข", len: 3, emoji: "🐶" },
     { word: "RUN", meaning: "วิ่ง", len: 3, emoji: "🏃" },
@@ -77,6 +73,58 @@ const GLOBAL_WORD_POOL = [
     { word: "COMPONENT", meaning: "ส่วนประกอบ", len: 9, emoji: "🧩" },
     { word: "ALGORITHM", meaning: "อัลกอริทึม", len: 9, emoji: "🧠" },
     { word: "JAVASCRIPT", meaning: "ภาษา JS", len: 10, emoji: "📜" },
+    // --- NEW WORDS (50+) ---
+    { word: "FIRE", meaning: "ไฟ", len: 4, emoji: "🔥" },
+    { word: "ICE", meaning: "น้ำแข็ง", len: 3, emoji: "🧊" },
+    { word: "WIND", meaning: "ลม", len: 4, emoji: "💨" },
+    { word: "EARTH", meaning: "โลก/ดิน", len: 5, emoji: "🌍" },
+    { word: "MOON", meaning: "พระจันทร์", len: 4, emoji: "🌙" },
+    { word: "STAR", meaning: "ดาว", len: 4, emoji: "⭐" },
+    { word: "RAIN", meaning: "ฝน", len: 4, emoji: "🌧️" },
+    { word: "SNOW", meaning: "หิมะ", len: 4, emoji: "❄️" },
+    { word: "TREE", meaning: "ต้นไม้", len: 4, emoji: "🌳" },
+    { word: "FLOWER", meaning: "ดอกไม้", len: 6, emoji: "🌸" },
+    { word: "FOREST", meaning: "ป่า", len: 6, emoji: "🌲" },
+    { word: "RIVER", meaning: "แม่น้ำ", len: 5, emoji: "🏞️" },
+    { word: "MOUNTAIN", meaning: "ภูเขา", len: 8, emoji: "⛰️" },
+    { word: "OCEAN", meaning: "มหาสมุทร", len: 5, emoji: "🌊" },
+    { word: "BEACH", meaning: "ชายหาด", len: 5, emoji: "🏖️" },
+    { word: "LION", meaning: "สิงโต", len: 4, emoji: "🦁" },
+    { word: "TIGER", meaning: "เสือ", len: 5, emoji: "🐯" },
+    { word: "BEAR", meaning: "หมี", len: 4, emoji: "🐻" },
+    { word: "PANDA", meaning: "แพนด้า", len: 5, emoji: "🐼" },
+    { word: "ZEBRA", meaning: "ม้าลาย", len: 5, emoji: "🦓" },
+    { word: "SNAKE", meaning: "งู", len: 5, emoji: "🐍" },
+    { word: "BIRD", meaning: "นก", len: 4, emoji: "🐦" },
+    { word: "PIZZA", meaning: "พิซซ่า", len: 5, emoji: "🍕" },
+    { word: "BURGER", meaning: "เบอร์เกอร์", len: 6, emoji: "🍔" },
+    { word: "FRIES", meaning: "มันฝรั่งทอด", len: 5, emoji: "🍟" },
+    { word: "SUSHI", meaning: "ซูชิ", len: 5, emoji: "🍣" },
+    { word: "BREAD", meaning: "ขนมปัง", len: 5, emoji: "🍞" },
+    { word: "CAKE", meaning: "เค้ก", len: 4, emoji: "🍰" },
+    { word: "MILK", meaning: "นม", len: 4, emoji: "🥛" },
+    { word: "COFFEE", meaning: "กาแฟ", len: 6, emoji: "☕" },
+    { word: "TEA", meaning: "ชา", len: 3, emoji: "🍵" },
+    { word: "SWORD", meaning: "ดาบ", len: 5, emoji: "⚔️" },
+    { word: "SHIELD", meaning: "โล่", len: 6, emoji: "🛡️" },
+    { word: "BOW", meaning: "ธนู", len: 3, emoji: "🏹" },
+    { word: "ARROW", meaning: "ลูกธนู", len: 5, emoji: "💘" },
+    { word: "MAGIC", meaning: "เวทมนตร์", len: 5, emoji: "✨" },
+    { word: "HEAL", meaning: "รักษา", len: 4, emoji: "❤️" },
+    { word: "MANA", meaning: "มานา", len: 4, emoji: "💧" },
+    { word: "XP", meaning: "ค่าประสบการณ์", len: 2, emoji: "⭐" },
+    { word: "LEVEL", meaning: "เลเวล", len: 5, emoji: "🆙" },
+    { word: "QUEST", meaning: "ภารกิจ", len: 5, emoji: "📜" },
+    { word: "PARTY", meaning: "ปาร์ตี้", len: 5, emoji: "🎉" },
+    { word: "GUILD", meaning: "กิลด์", len: 5, emoji: "🏰" },
+    { word: "BOSS", meaning: "บอส", len: 4, emoji: "👹" },
+    { word: "HERO", meaning: "ฮีโร่", len: 4, emoji: "🦸" },
+    { word: "JUMP", meaning: "กระโดด", len: 4, emoji: "🦘" },
+    { word: "SLEEP", meaning: "นอน", len: 5, emoji: "😴" },
+    { word: "READ", meaning: "อ่าน", len: 4, emoji: "📖" },
+    { word: "WRITE", meaning: "เขียน", len: 5, emoji: "✍️" },
+    { word: "LISTEN", meaning: "ฟัง", len: 6, emoji: "👂" },
+    { word: "SPEAK", meaning: "พูด", len: 5, emoji: "🗣️" }
 ];
 
 const TypingRPG = () => {
@@ -90,7 +138,7 @@ const TypingRPG = () => {
   const [castleLevel, setCastleLevel] = useState(1);
   const [castleXp, setCastleXp] = useState(0);
   const [maxCastleXp, setMaxCastleXp] = useState(BASE_XP_REQ);
-  const [acquiredSkills, setAcquiredSkills] = useState([]);
+  const [acquiredSkills, setAcquiredSkills] = useState([]); // Stores skill IDs like ['burn', 'burn', 'freeze']
   const [skillNotification, setSkillNotification] = useState(null); 
   
   // Inventory System
@@ -119,11 +167,9 @@ const TypingRPG = () => {
   const [damagePopup, setDamagePopup] = useState(null);
   const [healPopup, setHealPopup] = useState(null);
   const [slashEffect, setSlashEffect] = useState(false);
-  const [soldierSlashEffect, setSoldierSlashEffect] = useState(false);
   const [isInputBlocked, setIsInputBlocked] = useState(false);
-  const [statusEffect, setStatusEffect] = useState(null);
-  const [laserEffect, setLaserEffect] = useState(false); 
-  const [activeEffects, setActiveEffects] = useState([]); 
+  const [statusEffect, setStatusEffect] = useState(null); // 'FROZEN'
+  const [skillParticles, setSkillParticles] = useState([]); // Array of {id, emoji, x, y}
   
   // Roulette
   const [isSpinning, setIsSpinning] = useState(false);
@@ -133,7 +179,6 @@ const TypingRPG = () => {
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
-  const soldierTimerRef = useRef(null);
   const idCounter = useRef(0);
   const lastWordRef = useRef(null);
   
@@ -148,26 +193,33 @@ const TypingRPG = () => {
       killsRef.current = kills;
   }, [playerHp, enemyHp, kills]);
 
-  // --- LOGIC: Word Generator ---
-  const generateWord = (difficulty) => {
-    let minLen = 3, maxLen = 10;
-    if (difficulty <= 5) { minLen = 3; maxLen = 5; } 
-    else if (difficulty <= 15) { minLen = 4; maxLen = 7; } 
-    else { minLen = 5; maxLen = 15; }
+  // เตรียมข้อมูลล่วงหน้า 1 ครั้ง (สมมติว่า run ตอนโหลดเกม)
+const wordsByLength = {
+    short: GLOBAL_WORD_POOL.filter(w => w.len >= 3 && w.len <= 5),
+    medium: GLOBAL_WORD_POOL.filter(w => w.len >= 4 && w.len <= 7),
+    long: GLOBAL_WORD_POOL.filter(w => w.len >= 5 && w.len <= 15)
+};
 
-    const candidates = GLOBAL_WORD_POOL.filter(w => w.len >= minLen && w.len <= maxLen);
-    
-    let selected;
-    let attempts = 0;
-    do {
-         selected = candidates[Math.floor(Math.random() * candidates.length)] || GLOBAL_WORD_POOL[0];
-         attempts++;
-    } while (selected.word === lastWordRef.current && attempts < 5);
+// --- LOGIC: Word Generator (High Performance) ---
+const generateWord = (difficulty) => {
+    // 1. ชี้เป้าไปที่กลุ่มคำศัพท์ที่เตรียมไว้แล้วเลย (ไม่ต้องมานั่ง filter ใหม่ทุกรอบ)
+    let candidatesPool;
+    if (difficulty <= 5) candidatesPool = wordsByLength.short;
+    else if (difficulty <= 15) candidatesPool = wordsByLength.medium;
+    else candidatesPool = wordsByLength.long;
+
+    // 2. กรองแค่คำซ้ำ (เร็วกว่ากรองใหม่ทั้งหมดมากๆ)
+    const candidates = candidatesPool.filter(w => w.word !== lastWordRef.current);
+
+    const selected = candidates.length > 0 
+        ? candidates[Math.floor(Math.random() * candidates.length)] 
+        : GLOBAL_WORD_POOL[0]; // Fallback
     
     lastWordRef.current = selected.word;
     idCounter.current += 1;
+    
     return { ...selected, id: `word-${idCounter.current}` };
-  };
+};
 
   // --- LOGIC: Game Management ---
   const startGame = () => {
@@ -189,7 +241,8 @@ const TypingRPG = () => {
     setIsGameStarted(true);
     setGameState('PLAYING');
     setCastleImgError(false);
-    setLaserEffect(false);
+    setStatusEffect(null);
+    setSkillParticles([]);
     
     startLoops();
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -214,7 +267,7 @@ const TypingRPG = () => {
       startDrainLoop();
   };
 
-  // --- LOGIC: Game Loop & Auto-Speed ---
+  // --- LOGIC: Game Loop ---
   const startDrainLoop = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     const tickRate = TICK_RATE; 
@@ -231,18 +284,18 @@ const TypingRPG = () => {
             }
             
             // Linear Movement Logic
-            const speedMultiplier = 1 + (totalWordsTyped * 0.015);
-            let drainPerSec = BASE_DRAIN_RATE * speedMultiplier;
-            let drainPerTick = drainPerSec * (TICK_RATE / 1000);
+            let drainPerSec = BASE_DRAIN_RATE;
             
-            const shieldCount = acquiredSkills.filter(id => id === 'shield').length;
-            if (shieldCount > 0) drainPerTick *= (1 - (shieldCount * 0.1));
-            if (statusEffect === 'FREEZE') drainPerTick = 0; 
+            if (statusEffect === 'FROZEN') {
+                drainPerSec = 0; // Boss stops completely
+            }
 
+            let drainPerTick = drainPerSec * (TICK_RATE / 1000);
             return Math.max(0, prev - drainPerTick);
         });
-        
-        setActiveEffects(prev => prev.filter(p => Date.now() - p.id < 1000));
+
+        // Clean up particles
+        setSkillParticles(prev => prev.filter(p => Date.now() - p.id < 1000));
         
     }, tickRate);
   };
@@ -254,7 +307,7 @@ const TypingRPG = () => {
           stopLoops();
       }
       return () => stopLoops();
-  }, [showLevelUpModal, gameState]);
+  }, [showLevelUpModal, gameState, acquiredSkills, statusEffect]); 
 
   useEffect(() => {
     if (wordQueue[0]) {
@@ -272,13 +325,6 @@ const TypingRPG = () => {
 
       if (target.word.startsWith(val)) {
           setUserInput(val);
-          
-          if (combo > 5) {
-              const effectType = acquiredSkills.includes('burn') ? '🔥' : acquiredSkills.includes('freeze') ? '❄️' : '✨';
-              setActiveEffects(prev => [...prev, { id: Date.now(), char: effectType, x: Math.random() * 50 + 25 }]);
-              setTimeout(() => setActiveEffects(prev => prev.slice(1)), 500);
-          }
-
           if (val === target.word) {
               processWordComplete(target);
           }
@@ -289,33 +335,63 @@ const TypingRPG = () => {
       }
   };
 
+  // Helper to count skill levels
+  const getSkillLevel = (skillId) => acquiredSkills.filter(s => s === skillId).length;
+
   const processWordComplete = (target) => {
       setTotalWordsTyped(prev => prev + 1);
       
-      // เก็บเข้าประวัติชั่วคราว
+      // Save word to history
       setRunHistory(prev => {
           if (!prev.some(w => w.word === target.word)) return [...prev, target];
           return prev;
       });
 
       addCastleXp(30 + (combo * 5));
+      
+      // --- DAMAGE CALCULATION ---
       let damage = 20 + (combo * 2);
-      if (acquiredSkills.includes('crit') && Math.random() < 0.25) damage *= 2;
-      if (acquiredSkills.includes('burn')) damage += 10;
+      
+      // 1. FIRE SKILL (Bonus Damage)
+      const fireLvl = getSkillLevel('burn');
+      if (fireLvl > 0) {
+          const burnDmg = 10 * fireLvl;
+          damage += burnDmg;
+          addSkillParticle('🔥');
+      }
 
       setEnemyHp(prev => prev - damage);
       setDamagePopup({ val: damage, crit: damage > 40 });
       setTimeout(() => setDamagePopup(null), 800);
       setSlashEffect(true);
+      
+      // 2. PUSH SKILL (Knockback)
+      const pushLvl = getSkillLevel('push');
+      let knockbackDist = 2; // Default small knockback from Heal/Hit
+      if (pushLvl > 0) {
+          knockbackDist += (pushLvl * 5); // Push further per level
+          addSkillParticle('💨');
+      }
+      
+      // Apply Knockback (Heal acts as pushback in this linear logic)
+      setPlayerHp(prev => Math.min(MAX_PLAYER_HP, prev + knockbackDist));
+      
       setBossKnockback(true);
       setTimeout(() => {
           setSlashEffect(false);
           setBossKnockback(false);
       }, 200);
 
-      const healAmt = HEAL_PER_WORD + (acquiredSkills.filter(id => id === 'lifesteal').length * 2);
-      setPlayerHp(prev => Math.min(MAX_PLAYER_HP, prev + healAmt));
-      setHealPopup(`+${healAmt}`);
+      // 3. ICE SKILL (Freeze)
+      const iceLvl = getSkillLevel('freeze');
+      if (iceLvl > 0) {
+          setStatusEffect('FROZEN');
+          addSkillParticle('❄️');
+          // Duration: 1s, 1.5s, 2s
+          setTimeout(() => setStatusEffect(null), 500 + (iceLvl * 500));
+      }
+
+      setHealPopup(`HIT!`); // Visual feedback
       setTimeout(() => setHealPopup(null), 800);
 
       setUserInput('');
@@ -325,12 +401,19 @@ const TypingRPG = () => {
       else setWordQueue(prev => [prev[1], generateWord(killsRef.current)]);
   };
 
+  const addSkillParticle = (emoji) => {
+      setSkillParticles(prev => [
+          ...prev, 
+          { id: Date.now() + Math.random(), emoji, x: Math.random() * 80 - 40, y: Math.random() * 80 - 40 }
+      ]);
+  };
+
   const handleKillBoss = () => {
       const currentKills = killsRef.current + 1;
       setKills(currentKills);
       if (currentKills >= WIN_BOSS_COUNT) { 
           stopLoops();
-          // โอนคำศัพท์เข้า Inventory เมื่อชนะ
+          // Transfer history to inventory
           setInventory(prev => {
               const unique = runHistory.filter(h => !prev.some(p => p.word === h.word));
               return [...prev, ...unique];
@@ -345,6 +428,7 @@ const TypingRPG = () => {
       const newMaxHp = Math.floor(60 * (1 + killCount * 0.3)); 
       setEnemyHp(newMaxHp);
       setMaxEnemyHp(newMaxHp);
+      setStatusEffect(null); // Reset freeze on new boss
       setWordQueue([generateWord(killCount), generateWord(killCount)]);
   };
 
@@ -354,13 +438,31 @@ const TypingRPG = () => {
           setCastleLevel(prev => prev + 1);
           setCastleXp(newXp - maxCastleXp);
           setMaxCastleXp(prev => Math.floor(prev * 1.3));
-          const randomSkill = SKILLS[Math.floor(Math.random() * SKILLS.length)];
-          setAcquiredSkills(prev => [...prev, randomSkill.id]);
-          setSkillNotification(randomSkill);
-          setTimeout(() => setSkillNotification(null), 3000);
+          autoAcquireSkill(); 
       } else {
           setCastleXp(newXp);
       }
+  };
+
+  const autoAcquireSkill = () => {
+      // Filter skills not yet at max level
+      const currentCounts = {};
+      SKILLS.forEach(s => currentCounts[s.id] = 0);
+      acquiredSkills.forEach(id => { if(currentCounts[id] !== undefined) currentCounts[id]++ });
+
+      const availableSkills = SKILLS.filter(s => currentCounts[s.id] < MAX_SKILL_LEVEL);
+
+      if (availableSkills.length > 0) {
+          const randomSkill = availableSkills[Math.floor(Math.random() * availableSkills.length)];
+          setAcquiredSkills(prev => [...prev, randomSkill.id]);
+          setSkillNotification(randomSkill);
+      } else {
+          // All Maxed: Heal instead
+          setPlayerHp(MAX_PLAYER_HP);
+          setSkillNotification({ name: "Full Heal", icon: <Heart className="text-red-500" />, desc: "All skills maxed!" });
+      }
+      
+      setTimeout(() => setSkillNotification(null), 3000);
   };
 
   const shakeConsole = () => {
@@ -477,10 +579,14 @@ const TypingRPG = () => {
                 </div>
             </div>
             
-            <div className="flex gap-1 p-2 bg-slate-900/50 rounded-full border border-slate-800 backdrop-blur-sm">
+            <div className="flex gap-1 p-2 bg-slate-900/50 rounded-full border border-slate-800 backdrop-blur-sm max-w-[400px] flex-wrap justify-end">
                 {acquiredSkills.map((skillId, idx) => {
                     const s = SKILLS.find(x => x.id === skillId);
-                    return <div key={idx} className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded-full border border-slate-600 shadow-sm">{s?.icon}</div>;
+                    return (
+                        <div key={idx} className="w-6 h-6 flex items-center justify-center bg-slate-800 rounded-full border border-slate-600 shadow-sm">
+                            {React.cloneElement(s.icon, { className: "w-3 h-3 " + s.color })}
+                        </div>
+                    );
                 })}
             </div>
 
@@ -505,15 +611,20 @@ const TypingRPG = () => {
                         style={{ left: `${20 + (playerHp / MAX_PLAYER_HP) * 60}%` }} 
                     >
                         <div className={`relative group ${bossKnockback ? 'translate-x-2' : ''}`}>
-                            <div className="text-[10rem] filter drop-shadow-2xl transition-transform duration-75">{wordQueue[0].emoji}</div>
-                            {slashEffect && <div className="absolute inset-0 w-[140%] h-2 bg-white rotate-[-45deg] animate-ping shadow-[0_0_30px_#fff]"></div>}
-                            {activeEffects.map(ef => (
-                                <div key={ef.id} className="absolute text-4xl animate-bounce" style={{ top: '50%', left: `${ef.x}%` }}>{ef.char}</div>
+                            <div className={`text-[10rem] filter drop-shadow-2xl transition-transform duration-75 ${statusEffect === 'FROZEN' ? 'brightness-150 grayscale text-blue-200' : ''}`}>
+                                {wordQueue[0].emoji}
+                            </div>
+                            
+                            {/* Skill Particles */}
+                            {skillParticles.map(p => (
+                                <div key={p.id} className="absolute text-4xl animate-bounce" style={{ top: `calc(50% + ${p.y}px)`, left: `calc(50% + ${p.x}px)` }}>{p.emoji}</div>
                             ))}
+
+                            {slashEffect && <div className="absolute inset-0 w-[140%] h-2 bg-white rotate-[-45deg] animate-ping shadow-[0_0_30px_#fff]"></div>}
                             {damagePopup && <div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center z-50"><span className={`text-6xl font-black italic stroke-black text-white ${damagePopup.crit ? 'text-yellow-400 scale-125' : ''}`} style={{WebkitTextStroke: '2px black'}}>{damagePopup.val}</span></div>}
                         </div>
                         <div className="mt-4 w-48 h-4 bg-slate-800 rounded-full overflow-hidden border-2 border-slate-700 shadow-xl">
-                            <div className="h-full bg-gradient-to-r from-red-600 to-orange-600 transition-all duration-200" style={{ width: `${(enemyHp / maxEnemyHp) * 100}%` }}></div>
+                            <div className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-red-600 transition-all duration-200" style={{ width: `${(enemyHp / maxEnemyHp) * 100}%` }}></div>
                         </div>
                         <div className="mt-1 text-xs font-bold text-red-500 uppercase tracking-widest bg-black/40 px-3 py-0.5 rounded-full">Boss {kills + 1}/{WIN_BOSS_COUNT}</div>
                     </div>
@@ -530,11 +641,11 @@ const TypingRPG = () => {
             {healPopup && <div className="absolute -top-12 left-8 text-green-400 font-black text-4xl animate-bounce drop-shadow-lg">{healPopup}</div>}
 
             {skillNotification && (
-                <div className="absolute bottom-4 left-4 z-50 bg-slate-800 border-2 border-yellow-500 rounded-2xl p-4 flex items-center gap-4 animate-in slide-in-from-left-10 shadow-2xl">
+                <div className="absolute bottom-4 left-4 z-50 bg-slate-800 border-2 border-yellow-500 rounded-2xl p-4 flex items-center gap-4 animate-in slide-in-from-left-10 shadow-2xl max-w-[200px]">
                     <div className="p-2 bg-slate-900 rounded-xl">{skillNotification.icon}</div>
                     <div>
-                        <div className="text-yellow-400 font-black text-sm uppercase">Level Up!</div>
-                        <div className="text-white font-bold text-xs">{skillNotification.name} Unlocked</div>
+                        <div className="text-yellow-400 font-black text-xs uppercase">Level Up!</div>
+                        <div className="text-white font-bold text-[10px]">{skillNotification.name}</div>
                     </div>
                 </div>
             )}
