@@ -11,7 +11,7 @@ import {
 // --- GLOBAL CONSTANTS ---
 
 const MAX_PLAYER_HP = 100;
-const BASE_DRAIN_RATE = 3.5; 
+const BASE_DRAIN_RATE = 2.5; 
 const HEAL_PER_WORD = 4; 
 const BASE_ENEMY_HP = 250; 
 const BASE_XP_REQ = 100; 
@@ -19,6 +19,7 @@ const TYPO_PENALTY = 10;
 const TICK_RATE = 16; 
 const WIN_BOSS_COUNT = 20;
 const MAX_SKILL_LEVEL = 3;
+const PANIC_HP_THRESHOLD = 30;
 
 // Image IDs
 const IMG_CASTLE_ID = "14SlsJ9Nky-pqF-l2Npd33Gxq6fmp9QUi";
@@ -2224,7 +2225,7 @@ const GLOBAL_WORD_POOL = [
 const WORD_POOLS = {
     easy: GLOBAL_WORD_POOL.filter(w => w.len >= 3 && w.len <= 5),
     medium: GLOBAL_WORD_POOL.filter(w => w.len >= 4 && w.len <= 7),
-    hard: GLOBAL_WORD_POOL.filter(w => w.len >= 6 && w.len <= 15)
+    hard: GLOBAL_WORD_POOL.filter(w => w.len >= 5 && w.len <= 15)
 };
 
 const TypingRPG = () => {
@@ -2241,7 +2242,6 @@ const TypingRPG = () => {
   const [acquiredSkills, setAcquiredSkills] = useState([]); // Stores skill IDs like ['burn', 'burn', 'freeze']
   const [shieldCharges, setShieldCharges] = useState(0);
   const [shieldPieces, setShieldPieces] = useState(0);
-  const shieldChargesRef = useRef(0);
   const [skillNotification, setSkillNotification] = useState(null); 
   
   // Inventory System
@@ -2296,9 +2296,16 @@ const TypingRPG = () => {
   const playerHpRef = useRef(playerHp);
   const enemyHpRef = useRef(enemyHp);
   const killsRef = useRef(kills);
+  const shieldChargesRef = useRef(shieldCharges);
+
+  useEffect(() => { playerHpRef.current = playerHp; }, [playerHp]);
+  useEffect(() => { enemyHpRef.current = enemyHp; }, [enemyHp]);
+  useEffect(() => { killsRef.current = kills; }, [kills]);
+  useEffect(() => { shieldChargesRef.current = shieldCharges; }, [shieldCharges]);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isSlowed, setIsSlowed] = useState(false);
+  const skipBlockRef = useRef(false);
   const [isInfiniteMode, setIsInfiniteMode] = useState(false);
   const audioCtx = useRef(null);
   const bgmRef = useRef(null);
@@ -2395,7 +2402,12 @@ const generateWord = (difficulty, playerDictionary = []) => {
         const lastWasHard = history[history.length - 1] === 'hard';
         const lastTwoWereHard = history.length >= 2 && history.slice(-2).every(d => d === 'hard');
 
-        if (difficulty < 3 || lastTwoWereHard) {
+        const isPanicMode = playerHpRef.current < PANIC_HP_THRESHOLD;
+
+        if (isPanicMode) {
+            candidatesPool = WORD_POOLS.easy;
+            // No history push for panic to avoid messing up natural scaling
+        } else if (difficulty < 3 || lastTwoWereHard) {
             candidatesPool = WORD_POOLS.easy;
             difficultyHistoryRef.current.push('easy');
         } else if (lastWasHard || difficulty < 6) {
@@ -2414,9 +2426,13 @@ const generateWord = (difficulty, playerDictionary = []) => {
         const dictSet = new Set((playerDictionary || []).map(item => item.word));
         
         // คัดกรองเอาเฉพาะคำที่ "ยังไม่มีในคลัง" และ "ไม่ซ้ำกับคำล่าสุด"
-        const candidates = candidatesPool.filter(w => 
-            !dictSet.has(w.word) && w.word !== lastWordRef.current
-        );
+        const candidates = candidatesPool.filter(w => {
+            const isNotRepeat = !dictSet.has(w.word) && w.word !== lastWordRef.current;
+            if (isPanicMode) {
+                return isNotRepeat && w.len <= 4; // Force 3-4 chars in panic
+            }
+            return isNotRepeat;
+        });
 
         if (candidates.length === 0) throw new Error("WORD_POOL_EXHAUSTED");
 
@@ -2427,7 +2443,13 @@ const generateWord = (difficulty, playerDictionary = []) => {
         return { ...selected, id: `word-${idCounter.current}` };
     } catch (error) {
         // Fallback: หากคลังเต็ม (ไม่มีคำเหลือให้สุ่มแล้ว) ให้สุ่มจาก Pool เดิมมาให้เล่นต่อ
-        const pool = difficulty <= 5 ? WORD_POOLS.easy : (difficulty <= 15 ? WORD_POOLS.medium : WORD_POOLS.hard);
+        let pool;
+        if (playerHpRef.current < PANIC_HP_THRESHOLD) {
+            pool = WORD_POOLS.easy.filter(w => w.len <= 4);
+        } else {
+            pool = difficulty <= 5 ? WORD_POOLS.easy : (difficulty <= 15 ? WORD_POOLS.medium : WORD_POOLS.hard);
+        }
+        
         const selected = pool[Math.floor(Math.random() * pool.length)];
         
         lastWordRef.current = selected.word;
@@ -2501,8 +2523,13 @@ const generateWord = (difficulty, playerDictionary = []) => {
                 // DIVINE SHIELD INTERCEPTION
                 const shieldLvl = getSkillLevel('shield');
                 if (shieldChargesRef.current > 0 && shieldLvl > 0) {
-                    setShieldCharges(c => c - 1);
+                    shieldChargesRef.current -= 1; // Immediate atomic update
+                    setShieldCharges(shieldChargesRef.current);
                     setHealPopup("SHIELD TRIGGERED!");
+                    setUserInput('');
+                    setCombo(0); // Reset combo on hit
+                    setHasTypoInCurrentWord(false);
+                    skipBlockRef.current = true; // Bypass input block for fresh word
                     handleKillBoss(); // Instant kill current boss
                     setTimeout(() => setHealPopup(null), 1000);
                     return MAX_PLAYER_HP; // Bounce Back
@@ -2527,9 +2554,9 @@ const generateWord = (difficulty, playerDictionary = []) => {
             }
             
             if (statusEffect === 'FROZEN') {
-                drainPerSec = 0; // True Time Stop
+                drainPerSec = -0.35; // True Time Stop
             } else if (isSlowed) {
-                drainPerSec *= 0.5; // Boss moves 50% slower
+                drainPerSec *= 1.3; // Boss moves 50% slower
             }
 
             let drainPerTick = drainPerSec * (TICK_RATE / 1000);
@@ -2553,12 +2580,23 @@ const generateWord = (difficulty, playerDictionary = []) => {
 
   useEffect(() => {
     if (wordQueue[0]) {
+      // FORCE TOTAL INPUT CLEARANCE
+      setUserInput('');
+      setHasTypoInCurrentWord(false);
+      if (inputRef.current) inputRef.current.value = '';
+
+      if (skipBlockRef.current) {
+          skipBlockRef.current = false;
+          setIsInputBlocked(false);
+          setTimeout(() => inputRef.current?.focus(), 10);
+          return;
+      }
       setIsInputBlocked(true);
       const timer = setTimeout(() => {
           setIsInputBlocked(false);
           // Auto-refocus after block expires
           setTimeout(() => inputRef.current?.focus(), 10);
-      }, 500); 
+      }, 250); // Reduced from 500ms for responsiveness
       return () => clearTimeout(timer);
     }
   }, [wordQueue[0]?.id]);
@@ -2598,7 +2636,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           return prev;
       });
 
-      addCastleXp(50 + (combo * 30.2));
+      addCastleXp(100 + (combo * 30));
       
       const godLvl = getSkillLevel('god');
       
@@ -2714,8 +2752,12 @@ const generateWord = (difficulty, playerDictionary = []) => {
   };
 
   const handleKillBoss = () => {
-      const currentKills = killsRef.current + 1;
+      killsRef.current += 1;
+      const currentKills = killsRef.current;
       setKills(currentKills);
+      setHasTypoInCurrentWord(false);
+      setUserInput('');
+      
       if (currentKills >= WIN_BOSS_COUNT && !isInfiniteMode) { 
           stopLoops();
           setGameState('VICTORY');
@@ -3047,7 +3089,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
                     <div key={wordQueue[0]?.id + 'm'} className="text-5xl font-black text-yellow-400 drop-shadow-md animate-pop-center-then-up absolute top-8">
                         {wordQueue[0]?.meaning}
                     </div>
-                    <div key={wordQueue[0]?.id + 'w'} className="flex gap-2 justify-center mt-16 animate-reveal-keys">
+                    <div key={wordQueue[0]?.id + 'w'} className={`flex gap-2 justify-center mt-16 animate-reveal-keys transition-opacity duration-200 ${isInputBlocked ? 'opacity-40' : 'opacity-100'}`}>
                         {wordQueue[0]?.word.split('').map((char, i) => {
                             const isTyped = i < userInput.length;
                             const isCurr = i === userInput.length;
@@ -3062,8 +3104,8 @@ const generateWord = (difficulty, playerDictionary = []) => {
                     <div className="flex flex-col opacity-30 border-l-2 border-slate-800 pl-12 max-sm:hidden">
                         <div className="text-[10px] font-bold text-slate-500 mb-1 tracking-widest uppercase">Next Target</div>
                         <div className="text-2xl text-yellow-700 font-bold mb-1">{wordQueue[1].meaning}</div>
-                        <div className="flex gap-1">
-                            {wordQueue[1].word.slice(0, 5).split('').map((c, i) => (
+                        <div className="flex gap-1 flex-wrap max-w-xs">
+                            {wordQueue[1].word.split('').map((c, i) => (
                                 <div key={i} className="w-8 h-10 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center text-slate-600 font-bold border-b-4">{c}</div>
                             ))}
                         </div>

@@ -4,5 +4,5 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/MiniProjectGame-AI/',  // <--- แก้บรรทัดนี้ให้ตรงเป๊ะ
+  base: '/',  // <--- แก้บรรทัดนี้ให้ตรงเป๊ะ
 })
