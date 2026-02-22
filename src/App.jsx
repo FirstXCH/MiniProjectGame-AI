@@ -2233,6 +2233,9 @@ const TypingRPG = () => {
   const [isGameStarted, setIsGameStarted] = useState(false); 
   const [wave, setWave] = useState(1); 
   const [kills, setKills] = useState(0); 
+  const [isInfiniteUnlocked, setIsInfiniteUnlocked] = useState(() => {
+    return localStorage.getItem('emoji-typing-infinite-unlocked') === 'true';
+  });
   
   // Castle & Progression
   const [castleLevel, setCastleLevel] = useState(1);
@@ -2283,6 +2286,7 @@ const TypingRPG = () => {
   const [gainedSkill, setGainedSkill] = useState(null);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [isDistracted, setIsDistracted] = useState(false);
+  const [isButtonsFading, setIsButtonsFading] = useState(false);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -2383,9 +2387,25 @@ const TypingRPG = () => {
   }, [playerHp, enemyHp, kills]);
 
   const startInfiniteMode = () => {
-      setIsInfiniteMode(true);
-      setGameState('PLAYING');
-      spawnEnemy(kills);
+    setWave(1);
+    setIsInfiniteMode(true);
+    setGameState('PLAYING');
+    setIsGameStarted(true);
+    
+    // Reset Battle State
+    setPlayerHp(MAX_PLAYER_HP);
+    setEnemyHp(BASE_ENEMY_HP); // Initial HP for the mode, then spawnEnemy overrides it
+    setMaxEnemyHp(BASE_ENEMY_HP);
+    setUserInput('');
+    setCombo(0);
+    setTotalWordsTyped(0);
+    
+    // Set First Words
+    setWordQueue([generateWord(kills, inventory), generateWord(kills, inventory)]);
+    
+    spawnEnemy(kills);
+    startLoops();
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
 // --- LOGIC: Word Generator (High Performance Level O(1)) ---
@@ -2459,9 +2479,11 @@ const generateWord = (difficulty, playerDictionary = []) => {
     setWave(1);
     setKills(0);
     setIsInfiniteMode(false); // Reset infinite mode
-    setCastleLevel(1);
-    setCastleXp(0);
-    setAcquiredSkills([]);
+    setPlayerHp(MAX_PLAYER_HP);
+    setEnemyHp(BASE_ENEMY_HP);
+    setMaxEnemyHp(BASE_ENEMY_HP);
+    // RPG Stats (castleLevel, castleXp, acquiredSkills) are preserved as per user request
+    
     // First words for the game
     setWordQueue([generateWord(1, inventory), generateWord(1, inventory)]);
     setRunHistory([]);
@@ -2534,9 +2556,9 @@ const generateWord = (difficulty, playerDictionary = []) => {
             }
             
             if (statusEffect === 'FROZEN') {
-                drainPerSec = -0.2; // True Time Stop
+                drainPerSec = -0.1; // True Time Stop
             } else if (isSlowed) {
-                drainPerSec *= 1.2; // Boss moves 50% slower
+                drainPerSec *= 1; // Boss moves 50% slower
             }
 
             let drainPerTick = drainPerSec * (TICK_RATE / 1000);
@@ -2616,7 +2638,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           return prev;
       });
 
-      addCastleXp(100 + (combo * 30));
+      addCastleXp(100 + (combo * 20));
       
       const godLvl = getSkillLevel('god');
       
@@ -2653,7 +2675,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           // 1. FIRE SKILL
           const fireLvl = getSkillLevel('burn');
           if (fireLvl > 0) {
-              const burnDmg = 250 * fireLvl * powerMult;
+              const burnDmg = 200 * fireLvl * powerMult;
               currentDmg += burnDmg;
               addSkillParticle('🔥');
               if (godLvl > 0) addSkillParticle('💥');
@@ -2701,7 +2723,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           setBossKnockback(false);
       }, 200);
 
-      setHealPopup(godLvl > 0 ? `GOD POWER! x${castCount}` : `HIT!`);
+      setHealPopup(godLvl > 0 ? `HEAL! x${castCount}` : `HIT!`);
       setTimeout(() => setHealPopup(null), 800);
 
       setUserInput('');
@@ -2740,6 +2762,8 @@ const generateWord = (difficulty, playerDictionary = []) => {
       setUserInput('');
       
       if (currentKills >= WIN_BOSS_COUNT && !isInfiniteMode) { 
+          setIsInfiniteUnlocked(true);
+          localStorage.setItem('emoji-typing-infinite-unlocked', 'true');
           stopLoops();
           setGameState('VICTORY');
       } else {
@@ -2754,10 +2778,29 @@ const generateWord = (difficulty, playerDictionary = []) => {
       setStatusEffect(null); 
       setWordQueue([generateWord(killCount, inventoryRef.current), generateWord(killCount, inventoryRef.current)]);
 
-      // 10% Chance for visual distraction if boss is far (playerHp is high)
-      if (playerHpRef.current > 70 && Math.random() < 0.1) {
+      // --- BOSS SKILLS ---
+      const godLvl = getSkillLevel('god');
+      
+      // Skill 1: Improved Distraction (God Lv.1)
+      let distractionChance = 0.1;
+      let distractionThreshold = 70;
+      if (godLvl === 1) {
+          distractionChance = 0.15;
+          distractionThreshold = 75;
+      }
+      
+      if (playerHpRef.current > distractionThreshold && Math.random() < distractionChance) {
           setIsDistracted(true);
-          setTimeout(() => setIsDistracted(false), 4000); // Distortion lasts 4 seconds
+          setTimeout(() => setIsDistracted(false), 4000); 
+      }
+
+      // Skill 2: Button Fading (God Lv.2+)
+      setIsButtonsFading(false); // Reset
+      const firstWord = wordQueue[0];
+      if (godLvl >= 2 && firstWord && firstWord.len >= 3 && firstWord.len <= 6) {
+          if (Math.random() < 0.1) {
+              setIsButtonsFading(true);
+          }
       }
   };
 
@@ -2767,7 +2810,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           const nextLevel = castleLevel + 1;
           setCastleLevel(nextLevel);
           setCastleXp(newXp - maxCastleXp);
-          setMaxCastleXp(prev => Math.floor(prev * 1.1));
+          setMaxCastleXp(prev => Math.min(2000, Math.floor(prev * 1.1)));
           
           autoAcquireSkill(); 
       } else {
@@ -2795,8 +2838,8 @@ const generateWord = (difficulty, playerDictionary = []) => {
       if (availableSkills.length > 0) {
           const randomSkill = availableSkills[Math.floor(Math.random() * availableSkills.length)];
           
-          if (randomSkill.id === 'god' && getSkillLevel('god') === 0) {
-              // PRESTIGE: Absorb all skills when first becoming GOD
+          if (randomSkill.id === 'god') {
+              // PRESTIGE: Absorb all skills when reaching or leveling up GOD
               setAcquiredSkills(prev => {
                   const baseSkills = ['burn', 'freeze', 'push'];
                   // Remove ALL base skills, add GOD
@@ -2837,6 +2880,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
                   <div className="flex flex-col gap-4 w-64 mx-auto">
                       {isGameStarted && <button onClick={resumeGame} className="bg-green-600 py-4 rounded-xl font-bold text-xl flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Play className="fill-white" /> RESUME</button>}
                       <button onClick={startGame} className="bg-blue-600 py-4 rounded-xl font-bold text-xl flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Play className="fill-white" /> {isGameStarted ? 'NEW GAME' : 'START'}</button>
+                      {isInfiniteUnlocked && <button onClick={startInfiniteMode} className="bg-yellow-600 py-4 rounded-xl font-bold text-xl flex items-center justify-center gap-2 hover:scale-105 transition-transform border-b-4 border-yellow-800"><FastForward className="fill-white" /> INFINITE MODE</button>}
                       <button onClick={() => setGameState('INVENTORY')} className="bg-slate-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-600 hover:bg-slate-700 transition-colors"><BookOpen className="w-5 h-5" /> DICTIONARY ({inventory.length})</button>
                       <button onClick={() => setGameState('INFO')} className="bg-slate-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-600 hover:bg-slate-700 transition-colors"><Info className="w-5 h-5" /> SKILLS</button>
                   </div>
@@ -3048,7 +3092,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
                     <div key={wordQueue[0]?.id + 'm'} className="text-5xl font-black text-yellow-400 drop-shadow-md animate-pop-center-then-up absolute top-8">
                         {wordQueue[0]?.meaning}
                     </div>
-                    <div key={wordQueue[0]?.id + 'w'} className={`flex gap-2 justify-center mt-16 animate-reveal-keys transition-opacity duration-200 ${isInputBlocked ? 'opacity-40' : 'opacity-100'}`}>
+                    <div key={wordQueue[0]?.id + 'w'} className={`flex gap-2 justify-center mt-16 animate-reveal-keys transition-opacity duration-200 ${isInputBlocked ? 'opacity-40' : 'opacity-100'} ${isButtonsFading ? 'animate-fade-flicker' : ''}`}>
                         {wordQueue[0]?.word.split('').map((char, i) => {
                             const isTyped = i < userInput.length;
                             const isCurr = i === userInput.length;
@@ -3108,6 +3152,12 @@ const generateWord = (difficulty, playerDictionary = []) => {
                 50% { transform: translateY(-15px); }
             }
             .animate-float-bounce { animation: float-bounce 2.5s ease-in-out infinite; }
+
+            @keyframes fade-flicker {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.1; }
+            }
+            .animate-fade-flicker { animation: fade-flicker 3s ease-in-out infinite; }
 
             .active-danger-line {
                 animation: pulse-line 3s infinite;
