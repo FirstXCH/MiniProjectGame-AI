@@ -30,7 +30,6 @@ const SKILLS = [
   { id: 'burn', name: 'Fire', icon: <Flame className="text-orange-500" />, desc: 'Bonus Damage on every hit', color: 'border-orange-500' },
   { id: 'freeze', name: 'Ice', icon: <Snowflake className="text-cyan-400" />, desc: 'Stuns boss briefly on hit', color: 'border-cyan-400' },
   { id: 'push', name: 'Push', icon: <MoveRight className="text-yellow-400" />, desc: 'Knocks boss back on hit', color: 'border-yellow-400' },
-  { id: 'shield', name: 'Divine Shield', icon: <Shield className="text-amber-300" />, desc: 'Prevents Game Over & resets boss pos', color: 'border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]' },
   { id: 'god', name: 'GOD', icon: <Sparkles className="text-white animate-pulse" />, desc: 'The Ultimate Power of the Gods!', color: 'border-white shadow-[0_0_20px_white]' },
 ];
 
@@ -2240,8 +2239,6 @@ const TypingRPG = () => {
   const [castleXp, setCastleXp] = useState(0);
   const [maxCastleXp, setMaxCastleXp] = useState(BASE_XP_REQ);
   const [acquiredSkills, setAcquiredSkills] = useState([]); // Stores skill IDs like ['burn', 'burn', 'freeze']
-  const [shieldCharges, setShieldCharges] = useState(0);
-  const [shieldPieces, setShieldPieces] = useState(0);
   const [skillNotification, setSkillNotification] = useState(null); 
   
   // Inventory System
@@ -2285,6 +2282,7 @@ const TypingRPG = () => {
   const [rouletteIndex, setRouletteIndex] = useState(0);
   const [gainedSkill, setGainedSkill] = useState(null);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [isDistracted, setIsDistracted] = useState(false);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -2296,12 +2294,10 @@ const TypingRPG = () => {
   const playerHpRef = useRef(playerHp);
   const enemyHpRef = useRef(enemyHp);
   const killsRef = useRef(kills);
-  const shieldChargesRef = useRef(shieldCharges);
 
   useEffect(() => { playerHpRef.current = playerHp; }, [playerHp]);
   useEffect(() => { enemyHpRef.current = enemyHp; }, [enemyHp]);
   useEffect(() => { killsRef.current = kills; }, [kills]);
-  useEffect(() => { shieldChargesRef.current = shieldCharges; }, [shieldCharges]);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isSlowed, setIsSlowed] = useState(false);
@@ -2384,8 +2380,7 @@ const TypingRPG = () => {
       playerHpRef.current = playerHp;
       enemyHpRef.current = enemyHp;
       killsRef.current = kills;
-      shieldChargesRef.current = shieldCharges;
-  }, [playerHp, enemyHp, kills, shieldCharges]);
+  }, [playerHp, enemyHp, kills]);
 
   const startInfiniteMode = () => {
       setIsInfiniteMode(true);
@@ -2466,14 +2461,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
     setIsInfiniteMode(false); // Reset infinite mode
     setCastleLevel(1);
     setCastleXp(0);
-    setShieldPieces(0);
-    setMaxCastleXp(BASE_XP_REQ);
-    setPlayerHp(MAX_PLAYER_HP);
-    setEnemyHp(BASE_ENEMY_HP);
-    setMaxEnemyHp(BASE_ENEMY_HP);
     setAcquiredSkills([]);
-    setShieldCharges(0);
-    shieldChargesRef.current = 0;
     // First words for the game
     setWordQueue([generateWord(1, inventory), generateWord(1, inventory)]);
     setRunHistory([]);
@@ -2520,21 +2508,6 @@ const generateWord = (difficulty, playerDictionary = []) => {
 
         setPlayerHp(prev => {
             if (prev <= 0) {
-                // DIVINE SHIELD INTERCEPTION
-                const shieldLvl = getSkillLevel('shield');
-                if (shieldChargesRef.current > 0 && shieldLvl > 0) {
-                    shieldChargesRef.current -= 1; // Immediate atomic update
-                    setShieldCharges(shieldChargesRef.current);
-                    setHealPopup("SHIELD TRIGGERED!");
-                    setUserInput('');
-                    setCombo(0); // Reset combo on hit
-                    setHasTypoInCurrentWord(false);
-                    skipBlockRef.current = true; // Bypass input block for fresh word
-                    handleKillBoss(); // Instant kill current boss
-                    setTimeout(() => setHealPopup(null), 1000);
-                    return MAX_PLAYER_HP; // Bounce Back
-                }
-
                 stopLoops();
                 setGameState('GAMEOVER');
                 setIsGameStarted(false);
@@ -2544,19 +2517,26 @@ const generateWord = (difficulty, playerDictionary = []) => {
             // Linear Movement Logic
             // Dynamic Speed Logic
             const pushLvl = getSkillLevel('push');
-            const bossSpeedBonus = (killsRef.current * 0.4); // Increases every wave
+            
+            // ปรับความเร็วช่วงต้นเกม (0-7 kills): 0/20 -> 7/20
+            // ความเร็วจะค่อยๆ เพิ่มขึ้น โดยเริ่มจากช้ากว่าเดิม
+            let speedFactor = 0.4;
+            if (killsRef.current <= 7) {
+                speedFactor = 0.2; // ลดความเร็วลงครึ่งหนึ่งในช่วง 7 ตัวแรก
+            }
+            const bossSpeedBonus = (killsRef.current * speedFactor); 
             
             let drainPerSec = BASE_DRAIN_RATE + bossSpeedBonus + (pushLvl * 1.3);
 
             // Endgame Spike (Wave 13/20+)
             if (killsRef.current >= 12) {
-                drainPerSec += 2.5; 
+                drainPerSec += 3; 
             }
             
             if (statusEffect === 'FROZEN') {
-                drainPerSec = -0.35; // True Time Stop
+                drainPerSec = -0.2; // True Time Stop
             } else if (isSlowed) {
-                drainPerSec *= 1.3; // Boss moves 50% slower
+                drainPerSec *= 1.2; // Boss moves 50% slower
             }
 
             let drainPerTick = drainPerSec * (TICK_RATE / 1000);
@@ -2649,6 +2629,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           setTimeout(() => setHealPopup(null), 800);
           setUserInput('');
           setCombo(c => c + 1);
+          setPlayerHp(MAX_PLAYER_HP); // Reset position for next boss
           handleKillBoss();
           return;
       }
@@ -2772,6 +2753,12 @@ const generateWord = (difficulty, playerDictionary = []) => {
       setMaxEnemyHp(newMaxHp);
       setStatusEffect(null); 
       setWordQueue([generateWord(killCount, inventoryRef.current), generateWord(killCount, inventoryRef.current)]);
+
+      // 10% Chance for visual distraction if boss is far (playerHp is high)
+      if (playerHpRef.current > 70 && Math.random() < 0.1) {
+          setIsDistracted(true);
+          setTimeout(() => setIsDistracted(false), 4000); // Distortion lasts 4 seconds
+      }
   };
 
   const addCastleXp = (amount) => {
@@ -2782,32 +2769,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           setCastleXp(newXp - maxCastleXp);
           setMaxCastleXp(prev => Math.floor(prev * 1.1));
           
-          // DIVINE SHIELD AUTO-GRANT (Every 10 levels)
-          if (nextLevel % 10 === 0) {
-              const newPieces = shieldPieces + 1;
-              setShieldPieces(newPieces);
-              
-              // 3 pieces to upgrade: 1-2(Lv1), 3-5(Lv2), 6+(Lv3)
-              const calculatedLvl = Math.min(3, Math.floor(newPieces / 3) + 1);
-              
-              setAcquiredSkills(prev => {
-                  const baseSkills = prev.filter(s => s !== 'shield');
-                  const shieldStack = Array(calculatedLvl).fill('shield');
-                  return [...baseSkills, ...shieldStack];
-              });
-              
-              setShieldCharges(prev => prev + 1);
-              
-              const piecesInLvl = newPieces % 3;
-              setSkillNotification({ 
-                  name: piecesInLvl === 0 ? `SHIELD UPGRADE! (Lv.${calculatedLvl})` : `Shield Piece Acquired!`, 
-                  icon: <Shield className="text-amber-300" />, 
-                  desc: piecesInLvl === 0 ? `Merged 3 pieces! Charges +1` : `Lv.${calculatedLvl} [${piecesInLvl}/3] | Charges: +1`
-              });
-              setTimeout(() => setSkillNotification(null), 3000);
-          } else {
-              autoAcquireSkill(); 
-          }
+          autoAcquireSkill(); 
       } else {
           setCastleXp(newXp);
       }
@@ -2986,17 +2948,6 @@ const generateWord = (difficulty, playerDictionary = []) => {
                   <div className="flex items-center gap-2 px-6 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
                       <span className="text-white font-black text-lg tracking-tighter">BOSS {kills + 1}{isInfiniteMode ? " / ∞" : ` / ${WIN_BOSS_COUNT}`}</span>
                   </div>
-                  {shieldCharges > 0 && (
-                      <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 backdrop-blur-md rounded-full border border-amber-500/50 animate-pulse">
-                          <Shield className="w-5 h-5 text-amber-400" />
-                          <div className="flex flex-col items-center leading-none">
-                              <span className="text-amber-400 font-bold text-lg">{shieldCharges}</span>
-                              <span className="text-amber-500/70 text-[8px] font-black uppercase">
-                                  Lv.{getSkillLevel('shield')} [{shieldPieces % 3}/3]
-                              </span>
-                          </div>
-                      </div>
-                  )}
                 </div>
             </div>
             
@@ -3068,6 +3019,14 @@ const generateWord = (difficulty, playerDictionary = []) => {
 
         {/* --- TYPING CONSOLE --- */}
         <div id="typing-console" className="h-52 bg-slate-950 border-t-4 border-slate-800 relative z-40">
+            {isDistracted && (
+                <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-pulse" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-white/20 text-9xl font-black italic select-none">DISTORTED</span>
+                    </div>
+                </div>
+            )}
             <div className="absolute top-0 left-0 h-1.5 w-full bg-slate-800">
                 <div className="h-full transition-all duration-150" style={{ width: `${(playerHp / MAX_PLAYER_HP) * 100}%`, backgroundColor: playerHp < 30 ? '#ef4444' : '#22c55e', boxShadow: `0 0 15px ${playerHp < 30 ? '#ef4444' : '#22c55e'}` }} />
             </div>
