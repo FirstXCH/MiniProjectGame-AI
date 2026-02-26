@@ -2550,8 +2550,8 @@ const generateWord = (difficulty, playerDictionary = []) => {
             
             let drainPerSec = BASE_DRAIN_RATE + bossSpeedBonus + (pushLvl * 1.3);
 
-            // Endgame Spike (Wave 13/20+)
-            if (killsRef.current >= 12) {
+            
+            if (killsRef.current >= 9) {
                 drainPerSec += 3; 
             }
             
@@ -2638,7 +2638,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
           return prev;
       });
 
-      addCastleXp(100 + (combo * 20));
+      addCastleXp(100 + (combo * 15));
       
       const godLvl = getSkillLevel('god');
       
@@ -2670,7 +2670,7 @@ const generateWord = (difficulty, playerDictionary = []) => {
 
       for (let i = 0; i < castCount; i++) {
           // --- DAMAGE CALCULATION ---
-          let currentDmg = (40 + (combo * 3.1)) * powerMult;
+          let currentDmg = (40 + (combo * 2.8)) * powerMult;
           
           // 1. FIRE SKILL
           const fireLvl = getSkillLevel('burn');
