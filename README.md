@@ -5,7 +5,8 @@
 ### 🔗 Quick Links
 * 🎮 **Play the Game:** [emoji-typing.vercel.app](https://emoji-typing.vercel.app)
 * 📄 **Game Documentation (GDD):** [Read on Google Docs](https://docs.google.com/document/d/13rBS3GVWC7xQfGEmBF1UeO6k06qKE9QwWuA8EjyDgfw/edit?usp=sharing)
-* 👨‍💻 **Source Code:** [GitHub Repository](ใส่ลิงก์-repo-ของคุณที่นี่)
+* 👨‍💻 **Source Code:** [GitHub Src](https://github.com/FirstXCH/MiniProjectGame-AI/tree/main/src)
+* 👨‍💻 **Web by Tanawatnm:** [Web by Tanawatnm](https://tanawatnm.github.io/emoji-typing-docs/)
 
 ## 🎯 แนวคิดหลักของเกม (Core Concept)
 * ผู้เล่นจะต้องต่อสู้กับ "บอส" ด้วยการพิมพ์คำศัพท์ภาษาอังกฤษให้ถูกต้องและรวดเร็ว
@@ -44,7 +45,8 @@
 ### 🔗 Quick Links
 * 🎮 **Play the Game:** [emoji-typing.vercel.app](https://emoji-typing.vercel.app)
 * 📄 **Game Documentation (GDD):** [Read on Google Docs](https://docs.google.com/document/d/13rBS3GVWC7xQfGEmBF1UeO6k06qKE9QwWuA8EjyDgfw/edit?usp=sharing)
-* 👨‍💻 **Source Code:** [GitHub Repository](Your-Repo-Link-Here)
+* 👨‍💻 **Source Code:** [GitHub Src](https://github.com/FirstXCH/MiniProjectGame-AI/tree/main/src)
+* 👨‍💻 **Web by Tanawatnm:** [Web by Tanawatnm](https://tanawatnm.github.io/emoji-typing-docs/)
 
 ## 🎯 Core Concept
 * Players must fight "bosses" by typing English vocabulary words correctly and quickly.
